@@ -18,7 +18,7 @@ type History struct {
 
 type EventPost struct {
 	Timestamp int64
-	Data      string
+	Data      []map[string]interface{}
 }
 
 func main() {
@@ -27,16 +27,22 @@ func main() {
 	flag.Parse()
 
 	hist := &History{}
+	m := []map[string]interface{}{}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/event/api", func(w http.ResponseWriter, r *http.Request) {
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			data = []byte(err.Error())
+			m = append(m, map[string]interface{}{"error": err.Error()})
+		} else {
+			err = json.Unmarshal(data, &m)
+			if err != nil {
+				m = append(m, map[string]interface{}{"error": err.Error()})
+			}
 		}
 		hist.Lock()
 		defer hist.Unlock()
-		hist.C, hist.B, hist.A = hist.B, hist.A, EventPost{Data: string(data), Timestamp: time.Now().Unix()}
+		hist.C, hist.B, hist.A = hist.B, hist.A, EventPost{Data: m, Timestamp: time.Now().Unix()}
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
